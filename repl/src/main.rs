@@ -1,3 +1,7 @@
+use bel::object::Object;
+use bel::Bel;
+
 fn main() {
-    println!("Hello, world! {}", bel::Object::Nil);
+    let _bel = Bel::new();
+    println!("Hello, world! {}", Object::Nil);
 }
