@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 bel = { path = "../bel" }
+failure = "0.1"

@@ -1,12 +1,11 @@
 pub mod object;
+pub mod parser;
 
-pub struct Bel {
-
-}
+pub struct Bel {}
 
 impl Bel {
     pub fn new() -> Self {
-        Bel{}
+        Bel {}
     }
 }
 

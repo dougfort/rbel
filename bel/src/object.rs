@@ -1,17 +1,17 @@
 use std::fmt;
 
-/// Bel has four fundamental data types: 
+/// Bel has four fundamental data types:
 /// symbols, pairs, characters, and streams.
 /// Instances of the four fundamental types are called objects
 /// https://sep.yimg.com/ty/cdn/paulgraham/bellanguage.txt
 pub enum Object {
     Nil,
     Symbol(String),
-    Pair(Box<(Object,Object)>),
+    Pair(Box<(Object, Object)>),
+    Char(u8),
 }
 
 impl fmt::Display for Object {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Object::*;
         match &self {
@@ -20,7 +20,8 @@ impl fmt::Display for Object {
             Pair(pair) => {
                 let unboxed_pair = &*pair;
                 write!(f, "({}, {})", unboxed_pair.0, unboxed_pair.1)
-            },
+            }
+            Char(c) => write!(f, "\\{}", c),
         }
     }
 }
@@ -32,4 +33,3 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 }
-
