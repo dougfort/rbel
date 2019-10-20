@@ -8,7 +8,7 @@ impl Parser {
         Parser {}
     }
 
-    pub fn parse(&self, text: &str) -> Result<(Object, &str), Error> {
+    pub fn parse(&self, text: &str) -> Result<Object, Error> {
         let mut depth = 0;
         let mut content: String = String::new();
         for (i, c) in text.chars().enumerate() {
@@ -26,7 +26,7 @@ impl Parser {
                     depth -= 1;
                     let pieces = content.split_whitespace().collect::<Vec<_>>();
                     if pieces.len() == 0 {
-                        return Ok((Object::Nil, ""));
+                        return Ok(Object::Nil);
                     }
                     return Err(format_err!("too much content: '{:?}'", pieces));
                 }

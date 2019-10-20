@@ -1,21 +1,31 @@
-use std::io::{stdin, stdout, Write};
 use bel::object::Object;
 use bel::parser::Parser;
 use bel::Bel;
 use failure::Error;
+use std::io::{stdin, stdout, Write};
 
 fn main() -> Result<(), Error> {
     let parser = Parser::new();
-    let _bel = Bel::new();
+    let mut bel = Bel::new();
     loop {
         let stdin_line = get_stdin_line(">")?;
-        match parser.parse(&stdin_line) {
-            Ok((result, _)) => {
-                println!("parse result = {}", result);
+        let line = stdin_line.trim();
+        match line {
+            ":q" => {
+                println!("break!");
+                break;
             }
-            Err(e) => {
-                eprintln!("parse error: {:?}", e);
-            }
+
+            _ => match parser.parse(line) {
+                Ok(parse_result) => {
+                    println!("parse result = {}", parse_result);
+                    let eval_result = bel.eval(&parse_result)?;
+                    println!("eval result = {}", eval_result);
+                }
+                Err(e) => {
+                    eprintln!("parse error: {}", e);
+                }
+            },
         }
     }
     Ok(())
@@ -30,4 +40,4 @@ fn get_stdin_line(prompt: &str) -> std::io::Result<String> {
     stdin().read_line(&mut input)?;
 
     Ok(input)
-} 
+}
