@@ -1,11 +1,8 @@
-use bel::parser::Parser;
-use bel::Bel;
+use bel::parser;
 use anyhow::Error;
 use std::io::{stdin, stdout, Write};
 
 fn main() -> Result<(), Error> {
-    let parser = Parser::new();
-    let mut bel = Bel::new();
     loop {
         let stdin_line = get_stdin_line(">")?;
         let line = stdin_line.trim();
@@ -15,11 +12,9 @@ fn main() -> Result<(), Error> {
                 break;
             }
 
-            _ => match parser.parse(line) {
+            _ => match parser::parse(line) {
                 Ok(parse_result) => {
                     println!("parse result = {}", parse_result);
-                    let eval_result = bel.eval(&parse_result)?;
-                    println!("eval result = {}", eval_result);
                 }
                 Err(e) => {
                     eprintln!("parse error: {}", e);
