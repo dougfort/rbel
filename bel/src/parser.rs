@@ -1,6 +1,13 @@
 use super::object::Object;
-use failure::{format_err, Error};
+use thiserror::Error;
 
+#[derive(Error, Debug)]
+pub enum ParseError {
+    #[error("parse error")]
+    Error,
+}
+
+#[derive(Default)]
 pub struct Parser {}
 
 impl Parser {
@@ -8,31 +15,31 @@ impl Parser {
         Parser {}
     }
 
-    pub fn parse(&self, text: &str) -> Result<Object, Error> {
+    pub fn parse(&self, text: &str) -> Result<Object, ParseError> {
         let mut depth = 0;
         let mut content: String = String::new();
         for (i, c) in text.chars().enumerate() {
             match c {
                 '(' => {
                     if depth > 0 {
-                        return Err(format_err!("cannot handle nested ')' yet at {}", i));
+                        return Err(ParseError::Error);
                     }
                     depth += 1
                 }
                 ')' => {
                     if depth < 1 {
-                        return Err(format_err!("unmatched ')' at {}", i));
+                        return Err(ParseError::Error);
                     }
                     depth -= 1;
                     let pieces = content.split_whitespace().collect::<Vec<_>>();
-                    if pieces.len() == 0 {
+                    if pieces.is_empty() {
                         return Ok(Object::Nil);
                     }
-                    return Err(format_err!("too much content: '{:?}'", pieces));
+                    return Err(ParseError::Error);
                 }
                 _ => content.push(c),
             }
         }
-        Err(format_err!("not implemented"))
+        Err(ParseError::Error)
     }
 }

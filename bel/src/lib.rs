@@ -1,8 +1,15 @@
 pub mod object;
 pub mod parser;
-use failure::{format_err, Error};
+use thiserror::Error;
 use object::*;
 
+#[derive(Error, Debug)]
+pub enum BelError {
+    #[error("bel error")]
+    Error, 
+}
+
+#[derive(Default)]
 pub struct Bel {}
 
 impl Bel {
@@ -10,8 +17,8 @@ impl Bel {
         Bel {}
     }
 
-    pub fn eval(&mut self, _obj: &Object) -> Result<Object, Error> {
-        Err(format_err!("eval not implemented"))
+    pub fn eval(&mut self, _obj: &Object) -> Result<Object, BelError> {
+        Err(BelError::Error)
     }
 }
 

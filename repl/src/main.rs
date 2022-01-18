@@ -1,7 +1,6 @@
-use bel::object::Object;
 use bel::parser::Parser;
 use bel::Bel;
-use failure::Error;
+use anyhow::Error;
 use std::io::{stdin, stdout, Write};
 
 fn main() -> Result<(), Error> {
@@ -32,7 +31,7 @@ fn main() -> Result<(), Error> {
 }
 
 fn get_stdin_line(prompt: &str) -> std::io::Result<String> {
-    println!("");
+    println!();
     print!("{} ", prompt);
     stdout().flush()?;
 
