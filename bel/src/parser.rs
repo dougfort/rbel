@@ -1,45 +1,45 @@
-use super::object::Object;
+use crate::Object;
+use nom::{IResult, Finish, };
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
-    #[error("parse error")]
-    Error,
+    #[error("parse error: {0}")]
+    Error(String),
 }
 
-#[derive(Default)]
-pub struct Parser {}
+pub fn parse(input: &str) -> Result<Object, ParseError> {
+    object(input)
+        .finish()
+        .map(|(_, o)| o)
+        .map_err(|e| ParseError::Error(format!("{:?}", e)))
+}
 
-impl Parser {
-    pub fn new() -> Self {
-        Parser {}
+fn object(input: &str) -> IResult<&str, Object> {
+    Err(nom::Err::Incomplete(nom::Needed::new(2)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_fails() {
+        assert!(parse("x").is_err());
     }
 
-    pub fn parse(&self, text: &str) -> Result<Object, ParseError> {
-        let mut depth = 0;
-        let mut content: String = String::new();
-        for (i, c) in text.chars().enumerate() {
-            match c {
-                '(' => {
-                    if depth > 0 {
-                        return Err(ParseError::Error);
+    #[test]
+    fn can_parse_predefined() {
+        for &s in &["t", "nil", "o", "apply"] {
+            match parse(s) {
+                Ok(o) => {
+                    match o {
+                        Object::Symbol(x) => assert_eq!(x, s),
+                        _ => panic!("invalid Object: {:?}", o)
                     }
-                    depth += 1
-                }
-                ')' => {
-                    if depth < 1 {
-                        return Err(ParseError::Error);
-                    }
-                    depth -= 1;
-                    let pieces = content.split_whitespace().collect::<Vec<_>>();
-                    if pieces.is_empty() {
-                        return Ok(Object::Nil);
-                    }
-                    return Err(ParseError::Error);
-                }
-                _ => content.push(c),
+                },
+                Err(e) => panic!("{:?}", e)
             }
         }
-        Err(ParseError::Error)
     }
 }
