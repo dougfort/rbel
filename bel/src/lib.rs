@@ -16,7 +16,7 @@ pub enum BelError {
 pub enum Object {
     Symbol(String),
     Pair(Box<(Object, Object)>),
-    Char(u8),
+    Char(Vec<u8>),
     Stream,
 }
 
@@ -29,7 +29,7 @@ impl fmt::Display for Object {
                 let unboxed_pair = &*pair;
                 write!(f, "({}, {})", unboxed_pair.0, unboxed_pair.1)
             }
-            Char(c) => write!(f, "\\{}", c),
+            Char(c) => write!(f, "\\{:?}", c),
             Stream => write!(f, "<stream>"),
         }
     }

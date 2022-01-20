@@ -1,37 +1,35 @@
 use bel::parser;
 use anyhow::Error;
-use std::io::{stdin, stdout, Write};
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 fn main() -> Result<(), Error> {
+    let mut rl = Editor::<()>::new();
+    if rl.load_history("history.txt").is_err() {
+        println!("No previous history.");
+    }
     loop {
-        let stdin_line = get_stdin_line(">")?;
-        let line = stdin_line.trim();
-        match line {
-            ":q" => {
-                println!("break!");
-                break;
-            }
-
-            _ => match parser::parse(line) {
-                Ok(parse_result) => {
-                    println!("parse result = {}", parse_result);
-                }
-                Err(e) => {
-                    eprintln!("parse error: {}", e);
-                }
+        let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str());
+                println!("Line: {}", line);
             },
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break
+            },
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break
+            },
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break
+            }
         }
     }
+    rl.save_history("history.txt").unwrap();
+        
     Ok(())
-}
-
-fn get_stdin_line(prompt: &str) -> std::io::Result<String> {
-    println!();
-    print!("{} ", prompt);
-    stdout().flush()?;
-
-    let mut input = String::new();
-    stdin().read_line(&mut input)?;
-
-    Ok(input)
 }

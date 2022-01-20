@@ -1,5 +1,6 @@
 use crate::Object;
-use nom::{IResult, Finish, };
+use nom::{IResult, Finish};
+use nom::sequence::preceded;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -9,16 +10,17 @@ pub enum ParseError {
 }
 
 pub fn parse(input: &str) -> Result<Object, ParseError> {
-    object(input)
-        .finish()
-        .map(|(_, o)| o)
-        .map_err(|e| ParseError::Error(format!("{:?}", e)))
+    let input = input.trim();
+    match char(input) {
+        Ok(res) => println!("{:?}", res),
+        Err(e) =>  println!("{:?}", e),
+    }
+    Err(ParseError::Error("not implements".to_string()))
 }
 
-fn object(input: &str) -> IResult<&str, Object> {
-    Err(nom::Err::Incomplete(nom::Needed::new(2)))
+fn char(input: &str) -> IResult<&str, &str> {
+    Ok(("", ""))
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -29,17 +31,16 @@ mod tests {
     }
 
     #[test]
-    fn can_parse_predefined() {
-        for &s in &["t", "nil", "o", "apply"] {
-            match parse(s) {
-                Ok(o) => {
-                    match o {
-                        Object::Symbol(x) => assert_eq!(x, s),
-                        _ => panic!("invalid Object: {:?}", o)
-                    }
-                },
-                Err(e) => panic!("{:?}", e)
-            }
+    fn can_parse_char() {
+        match parse("\\a") {
+            Ok(obj) => {
+                if let Object::Char(c) = obj {
+                    assert_eq!(c, &[b'a']);
+                } else {
+                    panic!("unknown object: {:?}", obj)
+                }                
+            },
+            Err(e) => panic!("{:?}", e),
         }
     }
 }
