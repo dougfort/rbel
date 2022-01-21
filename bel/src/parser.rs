@@ -19,38 +19,35 @@ pub fn parse(input: &str) -> Result<Vec<Object>, ParseError> {
     // start with an outer list whether we need it or not
     let mut list_stack: Vec<Vec<Object>> = vec![Vec::new()];
     let mut state = State::ConsumeWhitespace;
-    let mut current_list: Vec<Object> = Vec::new();
     for c in input.chars() {
         match c {
             '(' => {
                 match state {
                     State::BuildSymbol => {
-                        current_list.push(Object::Symbol(accum.clone()));
+                        list_stack[level].push(Object::Symbol(accum.clone()));
                     }
                     State::BuildChar => {
-                        current_list.push(Object::Char(accum.clone()));
+                        list_stack[level].push(Object::Char(accum.clone()));
                     }
                     _ => {}
                 }
-                list_stack.push(current_list);
-                current_list = Vec::new();
                 state = State::ConsumeWhitespace;
+                list_stack.push(Vec::<Object>::new());
                 level += 1;
             }
             ')' => {
                 match state {
                     State::BuildSymbol => {
-                        current_list.push(Object::Symbol(accum.clone()));
+                        list_stack[level].push(Object::Symbol(accum.clone()));
                     }
                     State::BuildChar => {
-                        current_list.push(Object::Char(accum.clone()));
+                        list_stack[level].push(Object::Char(accum.clone()));
                     }
                     _ => {}
                 }
+                let list = list_stack.pop().unwrap();
                 level -= 1;
-                list_stack[level].push(Object::List(current_list));
-                list_stack.pop();
-                current_list = Vec::new();
+                list_stack[level].push(Object::List(list));
                 state = State::ConsumeWhitespace;
             }
             '\\' => {
@@ -59,11 +56,11 @@ pub fn parse(input: &str) -> Result<Vec<Object>, ParseError> {
             }
             _ => match state {
                 State::BuildSymbol if c.is_whitespace() => {
-                    current_list.push(Object::Symbol(accum.clone()));
+                    list_stack[level].push(Object::Symbol(accum.clone()));
                     state = State::ConsumeWhitespace;
                 }
                 State::BuildChar if c.is_whitespace() => {
-                    current_list.push(Object::Char(accum.clone()));
+                    list_stack[level].push(Object::Char(accum.clone()));
                     state = State::ConsumeWhitespace;
                 }
                 State::ConsumeWhitespace if c.is_whitespace() => {}
@@ -78,17 +75,16 @@ pub fn parse(input: &str) -> Result<Vec<Object>, ParseError> {
             },
         }
         println!(
-            "c = '{}', accum = '{}', current_list = {:?}, (level, len) = ({}, {}), list_stack = {:?}", 
-            c, accum, current_list, level, list_stack.len(), list_stack
+            "c = '{}', accum = '{}', (level, len) = ({}, {}), list_stack = {:?}", 
+            c, accum, level, list_stack.len(), list_stack
         );
     }
     if level > 0 {
         Err(ParseError::Error(format!("invalid level: {}", level)))
     } else {
         println!(
-            "final, accum = '{}', current_list = {:?}, (level, len) = ({}, {}), list_stack = {:?}",
+            "final, accum = '{}', (level, len) = ({}, {}), list_stack = {:?}",
             accum,
-            current_list,
             level,
             list_stack.len(),
             list_stack
@@ -166,7 +162,7 @@ mod tests {
         match res.pop() {
             Some(object) => {
                 if let Object::List(l) = object {
-                    assert_eq!(l, vec![Object::List(vec![Object::Symbol("c".to_string())])]);
+                    assert_eq!(l, vec![Object::List(vec![Object::Symbol("x".to_string())])]);
                 } else {
                     panic!("unexpected return type: {:?}", res);
                 }
