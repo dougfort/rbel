@@ -10,3 +10,5 @@ edition = "2021"
 bel = { path = "../bel" }
 anyhow = "1"
 rustyline = "9"
+log = "0.4"
+env_logger = "0.9"
