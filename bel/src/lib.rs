@@ -1,11 +1,13 @@
+pub mod environment;
 pub mod parser;
+
 use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum BelError {
-    #[error("bel error")]
-    Error,
+    #[error("not implemented: {0}")]
+    NotImplemented(String),
 }
 
 /// Bel has four fundamental data types:
@@ -14,24 +16,18 @@ pub enum BelError {
 /// https://sep.yimg.com/ty/cdn/paulgraham/bellanguage.txt
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
-    Nil,
     Symbol(String),
     List(Vec<Object>),
     Char(String),
     Stream,
 }
 
-impl Object {
-    pub fn is_nil(&self) -> bool {
-        self == &Object::Nil
-    }
-}
+impl Object {}
 
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Object::*;
         match &self {
-            Nil => write!(f, "nil"),
             Symbol(word) => write!(f, "{}", word),
             List(l) => write!(f, "{:?}", l),
             Char(c) => write!(f, "\\{}", c),
@@ -41,8 +37,8 @@ impl fmt::Display for Object {
 }
 #[cfg(test)]
 mod tests {
+    //    use super::*;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+    fn some_objects_evaluate_to_themselves() {}
 }
