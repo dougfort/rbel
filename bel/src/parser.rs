@@ -74,21 +74,25 @@ pub fn parse(input: &str) -> Result<Vec<Object>, ParseError> {
                 }
             },
         }
-        println!(
-            "c = '{}', accum = '{}', (level, len) = ({}, {}), list_stack = {:?}", 
-            c, accum, level, list_stack.len(), list_stack
-        );
+        // println!(
+        //     "c = '{}', accum = '{}', (level, len) = ({}, {}), list_stack = {:?}",
+        //     c,
+        //     accum,
+        //     level,
+        //     list_stack.len(),
+        //     list_stack
+        // );
     }
     if level > 0 {
         Err(ParseError::Error(format!("invalid level: {}", level)))
     } else {
-        println!(
-            "final, accum = '{}', (level, len) = ({}, {}), list_stack = {:?}",
-            accum,
-            level,
-            list_stack.len(),
-            list_stack
-        );
+        // println!(
+        //     "final, accum = '{}', (level, len) = ({}, {}), list_stack = {:?}",
+        //     accum,
+        //     level,
+        //     list_stack.len(),
+        //     list_stack
+        // );
         match state {
             State::BuildSymbol => {
                 list_stack[0].push(Object::Symbol(accum.clone()));
