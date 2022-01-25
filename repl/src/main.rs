@@ -17,6 +17,13 @@ fn main() -> Result<(), Error> {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
+                if line == ":global" {
+                    println!("global");
+                    for (key, value) in &env.global {
+                        println!("({}, {:?}", key, value);
+                    }
+                    continue 'repl_loop;
+                }
                 rl.add_history_entry(line.as_str());
                 let object = match parser::parse(&line) {
                     Ok(result) => {

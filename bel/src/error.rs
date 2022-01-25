@@ -10,4 +10,10 @@ pub enum BelError {
 
     #[error("unbound symbol: {0}")]
     UnboundSymbol(String),
+
+    #[error("invalid object: expected {expected}; found {found}.")]
+    InvalidObject{
+        expected: String,
+        found: String,
+    },
 }

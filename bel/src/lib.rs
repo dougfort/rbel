@@ -17,7 +17,16 @@ pub enum Object {
     Stream,
 }
 
-impl Object {}
+impl Object {
+    fn t(&self) -> String {
+        match &self {
+            Object::Symbol(_) => "symbol".to_string(),
+            Object::List(_) => "list".to_string(),
+            Object::Char(_) => "char".to_string(),
+            Object::Stream => "stream".to_string(),
+        }
+    } 
+}
 
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
