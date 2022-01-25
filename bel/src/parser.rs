@@ -1,11 +1,5 @@
+use crate::error::BelError;
 use crate::Object;
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum ParseError {
-    #[error("parse error: {0}")]
-    Error(String),
-}
 
 enum State {
     ConsumeWhitespace,
@@ -13,7 +7,7 @@ enum State {
     BuildChar,
 }
 
-pub fn parse(input: &str) -> Result<Vec<Object>, ParseError> {
+pub fn parse(input: &str) -> Result<Vec<Object>, BelError> {
     let mut level = 0;
     let mut accum = String::new();
     // start with an outer list whether we need it or not
@@ -84,7 +78,7 @@ pub fn parse(input: &str) -> Result<Vec<Object>, ParseError> {
         // );
     }
     if level > 0 {
-        Err(ParseError::Error(format!("invalid level: {}", level)))
+        Err(BelError::ParseError(format!("invalid level: {}", level)))
     } else {
         // println!(
         //     "final, accum = '{}', (level, len) = ({}, {}), list_stack = {:?}",
@@ -111,18 +105,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn can_parse_empty_string() {
-        assert_eq!(parse("").unwrap(), vec![]);
+    fn can_parse_empty_string() -> Result<(), BelError> {
+        assert_eq!(parse("")?, vec![]);
+
+        Ok(())
     }
 
     #[test]
-    fn can_parse_symbol() {
-        assert_eq!(parse("a").unwrap(), vec![Object::Symbol("a".to_string())]);
+    fn can_parse_symbol() -> Result<(), BelError> {
+        assert_eq!(parse("a")?, vec![Object::Symbol("a".to_string())]);
+
+        Ok(())
     }
 
     #[test]
-    fn can_parse_empty_list() {
-        let mut res = parse("()").unwrap();
+    fn can_parse_empty_list() -> Result<(), BelError> {
+        let mut res = parse("()")?;
         match res.pop() {
             Some(object) => {
                 if let Object::List(l) = object {
@@ -135,11 +133,13 @@ mod tests {
                 panic!("unexpected empty list: {:?}", res);
             }
         }
+
+        Ok(())
     }
 
     #[test]
-    fn can_parse_list_of_symbols() {
-        let mut res = parse("(a b)").unwrap();
+    fn can_parse_list_of_symbols() -> Result<(), BelError> {
+        let mut res = parse("(a b)")?;
         match res.pop() {
             Some(object) => {
                 if let Object::List(l) = object {
@@ -158,11 +158,13 @@ mod tests {
                 panic!("unexpected empty list: {:?}", res);
             }
         }
+
+        Ok(())
     }
 
     #[test]
-    fn can_parse_embedded_list() {
-        let mut res = parse("((x))").unwrap();
+    fn can_parse_embedded_list() -> Result<(), BelError> {
+        let mut res = parse("((x))")?;
         match res.pop() {
             Some(object) => {
                 if let Object::List(l) = object {
@@ -175,11 +177,13 @@ mod tests {
                 panic!("unexpected empty list: {:?}", res);
             }
         }
+
+        Ok(())
     }
 
     #[test]
-    fn can_parse_embedded_list_of_symbols() {
-        let mut res = parse("(a b (c))").unwrap();
+    fn can_parse_embedded_list_of_symbols() -> Result<(), BelError> {
+        let mut res = parse("(a b (c))")?;
         match res.pop() {
             Some(object) => {
                 if let Object::List(l) = object {
@@ -199,5 +203,7 @@ mod tests {
                 panic!("unexpected empty list: {:?}", res);
             }
         }
+
+        Ok(())
     }
 }

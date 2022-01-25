@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Error};
-use bel::{parser, environment};
+use bel::{environment, parser};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
@@ -13,8 +13,7 @@ fn main() -> Result<(), Error> {
 
     let mut env = environment::Environment::new();
 
-'repl_loop:
-    loop {
+    'repl_loop: loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
@@ -28,7 +27,7 @@ fn main() -> Result<(), Error> {
                             result[0].clone()
                         } else {
                             bel::Object::List(result)
-                        }      
+                        }
                     }
                     Err(err) => {
                         eprintln!("error: {:?}", err);
