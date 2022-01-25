@@ -17,7 +17,7 @@ mod tests {
 
     #[test]
     fn can_create_function() -> Result<(), BelError> {
-        let f = parser::parse("(def f nil (()))");
+        let _f = parser::parse("(def f nil (()))");
         assert_eq!(parser::parse("")?, vec![]);
 
         Ok(())
