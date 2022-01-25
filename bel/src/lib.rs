@@ -25,7 +25,7 @@ impl Object {
             Object::Char(_) => "char".to_string(),
             Object::Stream => "stream".to_string(),
         }
-    } 
+    }
 }
 
 impl fmt::Display for Object {

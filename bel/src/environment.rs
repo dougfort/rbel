@@ -42,16 +42,33 @@ impl Environment {
                 if let Object::Symbol(name) = list[0].clone() {
                     match name.as_ref() {
                         "set" => {
-                            for i in 1..list.len()-1 {
+                            for i in 1..list.len() - 1 {
                                 if let Object::Symbol(key) = list[i].clone() {
-                                    self.global.insert(key, list[i+1].clone());
+                                    self.global.insert(key, list[i + 1].clone());
                                 } else {
-                                    return Err(BelError::InvalidObject{expected: "list".to_string(), found: list[i+1].t()})
-                                }                                
+                                    return Err(BelError::InvalidObject {
+                                        expected: "symbol".to_string(),
+                                        found: list[i].t(),
+                                    });
+                                }
+                            }
+                            // append nil if the final arg isn't present
+                            // an even number of entries (including 'set')
+                            // means the last value is unspecified
+                            if list.len() % 2 == 0 {
+                                let i = list.len() - 1;
+                                if let Object::Symbol(key) = list[i].clone() {
+                                    self.global.insert(key, Object::Symbol("nil".to_string()));
+                                } else {
+                                    return Err(BelError::InvalidObject {
+                                        expected: "symbol".to_string(),
+                                        found: list[i].t(),
+                                    });
+                                }
                             }
                             return Ok(Object::Symbol("nil".to_string()));
                         }
-                        "xxx" => {},
+                        "xxx" => {}
                         _ => {}
                     }
                 }
@@ -102,7 +119,7 @@ mod tests {
         assert_eq!(stmt.len(), 1);
         let stmt_obj = &stmt[0];
 
-        let obj =  env.evaluate(stmt_obj)?;
+        let obj = env.evaluate(stmt_obj)?;
         if let Object::Symbol(s) = obj {
             assert_eq!(s, "nil");
         } else {
@@ -110,10 +127,10 @@ mod tests {
         }
 
         let stmt = parser::parse("a")?;
-        assert_eq!(stmt.len(), 1);        
+        assert_eq!(stmt.len(), 1);
         let stmt_obj = &stmt[0];
 
-        let obj =  env.evaluate(stmt_obj)?;
+        let obj = env.evaluate(stmt_obj)?;
         if let Object::Symbol(s) = obj {
             assert_eq!(s, "b");
         } else {

@@ -12,8 +12,5 @@ pub enum BelError {
     UnboundSymbol(String),
 
     #[error("invalid object: expected {expected}; found {found}.")]
-    InvalidObject{
-        expected: String,
-        found: String,
-    },
+    InvalidObject { expected: String, found: String },
 }
