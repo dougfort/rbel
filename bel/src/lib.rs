@@ -1,14 +1,9 @@
 pub mod environment;
+pub mod error;
+mod function;
 pub mod parser;
 
 use std::fmt;
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum BelError {
-    #[error("not implemented: {0}")]
-    NotImplemented(String),
-}
 
 /// Bel has four fundamental data types:
 /// symbols, pairs, characters, and streams.
@@ -37,8 +32,11 @@ impl fmt::Display for Object {
 }
 #[cfg(test)]
 mod tests {
-    //    use super::*;
+    use super::*;
+    use error::BelError;
 
     #[test]
-    fn some_objects_evaluate_to_themselves() {}
+    fn some_objects_evaluate_to_themselves() -> Result<(), BelError> {
+        Ok(())
+    }
 }

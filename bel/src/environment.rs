@@ -1,14 +1,6 @@
+use crate::error::BelError;
 use crate::Object;
 use std::collections::HashMap;
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum EvalError {
-    #[error("unbound symbol: {0}")]
-    UnboundSymbol(String),
-    #[error("not implemented: {0}")]
-    NotImplemented(String),
-}
 
 #[derive(Default, Debug)]
 pub struct Environment {
@@ -35,12 +27,12 @@ impl Environment {
     }
 
     // Return an object that is reduced to its lowest terms
-    pub fn evaluate(&mut self, obj: &Object) -> Result<Object, EvalError> {
+    pub fn evaluate(&mut self, obj: &Object) -> Result<Object, BelError> {
         let output = match obj {
             Object::Symbol(name) => match self.global.get(name) {
                 Some(obj) => obj.clone(),
                 None => {
-                    return Err(EvalError::UnboundSymbol(name.clone()));
+                    return Err(BelError::UnboundSymbol(name.clone()));
                 }
             },
             Object::List(list) => {
@@ -52,9 +44,9 @@ impl Environment {
                 Object::List(evaluated_list)
             }
             Object::Char(_c) => {
-                return Err(EvalError::NotImplemented("Object::Char".to_string()));
+                return Err(BelError::NotImplemented("Object::Char".to_string()));
             }
-            Object::Stream => return Err(EvalError::NotImplemented("Object::Stream".to_string())),
+            Object::Stream => return Err(BelError::NotImplemented("Object::Stream".to_string())),
         };
 
         Ok(output)
@@ -64,9 +56,10 @@ impl Environment {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser;
 
     #[test]
-    fn some_objects_evaluate_to_themselves() {
+    fn some_objects_evaluate_to_themselves() -> Result<(), BelError> {
         let mut env = Environment::new();
         for obj in vec![
             Object::Symbol("nil".to_string()),
@@ -74,9 +67,18 @@ mod tests {
             Object::Symbol("o".to_string()),
             Object::Symbol("apply".to_string()),
         ] {
-            let res = env.evaluate(&obj).unwrap();
+            let res = env.evaluate(&obj)?;
             assert_eq!(res, obj);
         }
         assert_eq!(2 + 2, 4);
+
+        Ok(())
+    }
+
+    #[test]
+    fn can_set_global() -> Result<(), BelError> {
+        let stmt = parser::parse("(set a b");
+
+        Ok(())
     }
 }
