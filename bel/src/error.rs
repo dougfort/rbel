@@ -13,4 +13,8 @@ pub enum BelError {
 
     #[error("invalid object: expected {expected}; found {found}.")]
     InvalidObject { expected: String, found: String },
+
+    #[error("invalid quote: {0}")]
+    InvalidQuote(String),
+
 }

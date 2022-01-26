@@ -26,6 +26,22 @@ impl Object {
             Object::Stream => "stream".to_string(),
         }
     }
+
+    pub fn is_nil(&self) -> bool {
+        if let Object::Symbol(name) = self {
+            name == "nil"
+        } else {
+            false
+        }
+    }
+
+    pub fn is_quote(&self) -> bool {
+        if let Object::Symbol(name) = self {
+            name == "quote"
+        } else {
+            false
+        }
+    }
 }
 
 impl fmt::Display for Object {

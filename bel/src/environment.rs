@@ -68,7 +68,13 @@ impl Environment {
                             }
                             return Ok(Object::Symbol("nil".to_string()));
                         }
-                        "xxx" => {}
+                        // return the inner object without evaluating
+                        "quote" => {
+                            if list.len() != 2 {
+                                return Err(BelError::InvalidQuote(format!("{:?}", list)));
+                            }
+                            return Ok(list[1].clone());
+                        }
                         _ => {}
                     }
                 }
@@ -120,11 +126,7 @@ mod tests {
         let stmt_obj = &stmt[0];
 
         let obj = env.evaluate(stmt_obj)?;
-        if let Object::Symbol(s) = obj {
-            assert_eq!(s, "nil");
-        } else {
-            panic!("unexpected object {:?}", obj);
-        }
+        assert!(obj.is_nil());
 
         let stmt = parser::parse("a")?;
         assert_eq!(stmt.len(), 1);
@@ -133,6 +135,31 @@ mod tests {
         let obj = env.evaluate(stmt_obj)?;
         if let Object::Symbol(s) = obj {
             assert_eq!(s, "b");
+        } else {
+            panic!("unexpected object {:?}", obj);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn can_quote_symbol() -> Result<(), BelError> {
+        let mut env = Environment::new();
+
+        let stmt = parser::parse("(set a b)")?;
+        assert_eq!(stmt.len(), 1);
+        let stmt_obj = &stmt[0];
+
+        let obj = env.evaluate(stmt_obj)?;
+        assert!(obj.is_nil());
+
+        let stmt = parser::parse("(quote a)")?;
+        assert_eq!(stmt.len(), 1);
+        let stmt_obj = &stmt[0];
+
+        let obj = env.evaluate(stmt_obj)?;
+        if let Object::Symbol(s) = obj {
+            assert_eq!(s, "a");
         } else {
             panic!("unexpected object {:?}", obj);
         }
