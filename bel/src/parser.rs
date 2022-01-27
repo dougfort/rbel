@@ -30,39 +30,18 @@ impl Parser {
         self.level = 0;
         self.accum = String::new();
         // start with an outer list whether we need it or not
-        self.list_stack= vec![Vec::new()];
+        self.list_stack = vec![Vec::new()];
         self.state = State::ConsumeWhitespace;
 
         for c in input.chars() {
             match c {
                 '(' => {
-                    match self.state {
-                        State::BuildSymbol => {
-                            self.list_stack[self.level].push(Object::Symbol(self.accum.clone()));
-                        }
-                        State::BuildChar => {
-                            self.list_stack[self.level].push(Object::Char(self.accum.clone()));
-                        }
-                        _ => {}
-                    }
-                    self.state = State::ConsumeWhitespace;
-                    self.list_stack.push(Vec::<Object>::new());
-                    self.level += 1;
+                    self.finish_build();
+                    self.start_level();
                 }
                 ')' => {
-                    match self.state {
-                        State::BuildSymbol => {
-                            self.list_stack[self.level].push(Object::Symbol(self.accum.clone()));
-                        }
-                        State::BuildChar => {
-                            self.list_stack[self.level].push(Object::Char(self.accum.clone()));
-                        }
-                        _ => {}
-                    }
-                    let list = self.list_stack.pop().unwrap();
-                    self.level -= 1;
-                    self.list_stack[self.level].push(Object::List(list));
-                    self.state = State::ConsumeWhitespace;
+                    self.finish_build();
+                    self.finish_level();
                 }
                 '\\' => {
                     self.accum.clear();
@@ -88,14 +67,6 @@ impl Parser {
                     }
                 },
             }
-            // println!(
-            //     "c = '{}', accum = '{}', (level, len) = ({}, {}), list_stack = {:?}",
-            //     c,
-            //     accum,
-            //     level,
-            //     list_stack.len(),
-            //     list_stack
-            // );
         }
         if self.level > 0 {
             Err(BelError::ParseError(format!(
@@ -103,24 +74,34 @@ impl Parser {
                 self.level
             )))
         } else {
-            // println!(
-            //     "final, accum = '{}', (level, len) = ({}, {}), list_stack = {:?}",
-            //     accum,
-            //     level,
-            //     list_stack.len(),
-            //     list_stack
-            // );
-            match self.state {
-                State::BuildSymbol => {
-                    self.list_stack[0].push(Object::Symbol(self.accum.clone()));
-                }
-                State::BuildChar => {
-                    self.list_stack[0].push(Object::Char(self.accum.clone()));
-                }
-                _ => {}
-            }
+            self.finish_build();
             Ok(self.list_stack[0].clone())
         }
+    }
+
+    fn finish_build(&mut self) {
+        match self.state {
+            State::BuildSymbol => {
+                self.list_stack[self.level].push(Object::Symbol(self.accum.clone()));
+            }
+            State::BuildChar => {
+                self.list_stack[self.level].push(Object::Char(self.accum.clone()));
+            }
+            _ => {}
+        }
+    }
+
+    fn start_level(&mut self) {
+        self.list_stack.push(Vec::<Object>::new());
+        self.level += 1;
+        self.state = State::ConsumeWhitespace;
+    }
+
+    fn finish_level(&mut self) {
+        let list = self.list_stack.pop().unwrap();
+        self.level -= 1;
+        self.list_stack[self.level].push(Object::List(list));
+        self.state = State::ConsumeWhitespace;
     }
 }
 
