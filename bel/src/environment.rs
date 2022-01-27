@@ -123,18 +123,12 @@ mod tests {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
 
-        let stmt = parser.parse("(set a b)")?;
-        assert_eq!(stmt.len(), 1);
-        let stmt_obj = &stmt[0];
-
-        let obj = env.evaluate(stmt_obj)?;
+        let parse_obj = parser.parse("(set a b)")?;
+        let obj = env.evaluate(&parse_obj)?;
         assert!(obj.is_nil());
 
-        let stmt = parser.parse("a")?;
-        assert_eq!(stmt.len(), 1);
-        let stmt_obj = &stmt[0];
-
-        let obj = env.evaluate(stmt_obj)?;
+        let parse_obj = parser.parse("a")?;
+        let obj = env.evaluate(&parse_obj)?;
         if let Object::Symbol(s) = obj {
             assert_eq!(s, "b");
         } else {
@@ -149,18 +143,12 @@ mod tests {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
 
-        let stmt = parser.parse("(set a b)")?;
-        assert_eq!(stmt.len(), 1);
-        let stmt_obj = &stmt[0];
-
-        let obj = env.evaluate(stmt_obj)?;
+        let parse_obj = parser.parse("(set a b)")?;
+        let obj = env.evaluate(&parse_obj)?;
         assert!(obj.is_nil());
 
-        let stmt = parser.parse("(quote a)")?;
-        assert_eq!(stmt.len(), 1);
-        let stmt_obj = &stmt[0];
-
-        let obj = env.evaluate(stmt_obj)?;
+        let parse_obj = parser.parse("(quote a)")?;
+        let obj = env.evaluate(&parse_obj)?;
         if let Object::Symbol(s) = obj {
             assert_eq!(s, "a");
         } else {

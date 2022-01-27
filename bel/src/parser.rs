@@ -26,7 +26,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self, input: &str) -> Result<Vec<Object>, BelError> {
+    pub fn parse(&mut self, input: &str) -> Result<Object, BelError> {
         self.level = 0;
         self.accum = String::new();
         // start with an outer list whether we need it or not
@@ -75,7 +75,16 @@ impl Parser {
             )))
         } else {
             self.finish_build();
-            Ok(self.list_stack[0].clone())
+            let parse_list = self.list_stack[0].clone();
+
+            // if the parser result is a single Object return that
+            // otherwise return an Object::List of the result
+            let obj = match parse_list.len() {
+                0 => Object::Symbol("nil".to_string()), 
+                1 => parse_list[0].clone(),
+                _ => Object::List(parse_list),
+            };
+            Ok(obj)
         }
     }
 
@@ -118,7 +127,7 @@ mod tests {
     #[test]
     fn can_parse_empty_string() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        assert_eq!(parser.parse("")?, vec![]);
+        assert!(parser.parse("")?.is_nil());
 
         Ok(())
     }
@@ -126,7 +135,7 @@ mod tests {
     #[test]
     fn can_parse_symbol() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        assert_eq!(parser.parse("a")?, vec![Object::Symbol("a".to_string())]);
+        assert_eq!(parser.parse("a")?, Object::Symbol("a".to_string()));
 
         Ok(())
     }
@@ -134,18 +143,11 @@ mod tests {
     #[test]
     fn can_parse_empty_list() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        let mut res = parser.parse("()")?;
-        match res.pop() {
-            Some(object) => {
-                if let Object::List(l) = object {
-                    assert!(l.is_empty());
-                } else {
-                    panic!("unexpected return type: {:?}", res);
-                }
-            }
-            None => {
-                panic!("unexpected empty list: {:?}", res);
-            }
+        let parse_obj = parser.parse("()")?;
+        if let Object::List(l) = parse_obj {
+            assert!(l.is_empty());
+        } else {
+            panic!("unexpected return type: {:?}", parse_obj);
         }
 
         Ok(())
@@ -154,24 +156,17 @@ mod tests {
     #[test]
     fn can_parse_list_of_symbols() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        let mut res = parser.parse("(a b)")?;
-        match res.pop() {
-            Some(object) => {
-                if let Object::List(l) = object {
-                    assert_eq!(
-                        l,
-                        vec![
-                            Object::Symbol("a".to_string()),
-                            Object::Symbol("b".to_string())
-                        ]
-                    );
-                } else {
-                    panic!("unexpected return type: {:?}", res);
-                }
-            }
-            None => {
-                panic!("unexpected empty list: {:?}", res);
-            }
+        let parse_obj = parser.parse("(a b)")?;
+        if let Object::List(l) = parse_obj {
+            assert_eq!(
+                l,
+                vec![
+                    Object::Symbol("a".to_string()),
+                    Object::Symbol("b".to_string())
+                ]
+            );
+        } else {
+            panic!("unexpected return type: {:?}", parse_obj);
         }
 
         Ok(())
@@ -180,18 +175,11 @@ mod tests {
     #[test]
     fn can_parse_embedded_list() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        let mut res = parser.parse("((x))")?;
-        match res.pop() {
-            Some(object) => {
-                if let Object::List(l) = object {
-                    assert_eq!(l, vec![Object::List(vec![Object::Symbol("x".to_string())])]);
-                } else {
-                    panic!("unexpected return type: {:?}", res);
-                }
-            }
-            None => {
-                panic!("unexpected empty list: {:?}", res);
-            }
+        let parse_obj = parser.parse("((x))")?;
+        if let Object::List(l) = parse_obj {
+            assert_eq!(l, vec![Object::List(vec![Object::Symbol("x".to_string())])]);
+        } else {
+            panic!("unexpected return type: {:?}", parse_obj);
         }
 
         Ok(())
@@ -200,25 +188,18 @@ mod tests {
     #[test]
     fn can_parse_embedded_list_of_symbols() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        let mut res = parser.parse("(a b (c))")?;
-        match res.pop() {
-            Some(object) => {
-                if let Object::List(l) = object {
-                    assert_eq!(
-                        l,
-                        vec![
-                            Object::Symbol("a".to_string()),
-                            Object::Symbol("b".to_string()),
-                            Object::List(vec![Object::Symbol("c".to_string())]),
-                        ]
-                    );
-                } else {
-                    panic!("unexpected return type: {:?}", res);
-                }
-            }
-            None => {
-                panic!("unexpected empty list: {:?}", res);
-            }
+        let parse_obj = parser.parse("(a b (c))")?;
+        if let Object::List(l) = parse_obj {
+            assert_eq!(
+                l,
+                vec![
+                    Object::Symbol("a".to_string()),
+                    Object::Symbol("b".to_string()),
+                    Object::List(vec![Object::Symbol("c".to_string())]),
+                ]
+            );
+        } else {
+            panic!("unexpected return type: {:?}", parse_obj);
         }
 
         Ok(())
