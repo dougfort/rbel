@@ -97,6 +97,7 @@ impl Environment {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::parser;
 
@@ -119,16 +120,17 @@ mod tests {
 
     #[test]
     fn can_set_global() -> Result<(), BelError> {
+        let mut parser = parser::Parser::new();
         let mut env = Environment::new();
 
-        let stmt = parser::parse("(set a b)")?;
+        let stmt = parser.parse("(set a b)")?;
         assert_eq!(stmt.len(), 1);
         let stmt_obj = &stmt[0];
 
         let obj = env.evaluate(stmt_obj)?;
         assert!(obj.is_nil());
 
-        let stmt = parser::parse("a")?;
+        let stmt = parser.parse("a")?;
         assert_eq!(stmt.len(), 1);
         let stmt_obj = &stmt[0];
 
@@ -144,16 +146,17 @@ mod tests {
 
     #[test]
     fn can_quote_symbol() -> Result<(), BelError> {
+        let mut parser = parser::Parser::new();
         let mut env = Environment::new();
 
-        let stmt = parser::parse("(set a b)")?;
+        let stmt = parser.parse("(set a b)")?;
         assert_eq!(stmt.len(), 1);
         let stmt_obj = &stmt[0];
 
         let obj = env.evaluate(stmt_obj)?;
         assert!(obj.is_nil());
 
-        let stmt = parser::parse("(quote a)")?;
+        let stmt = parser.parse("(quote a)")?;
         assert_eq!(stmt.len(), 1);
         let stmt_obj = &stmt[0];
 

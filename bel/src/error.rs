@@ -16,5 +16,4 @@ pub enum BelError {
 
     #[error("invalid quote: {0}")]
     InvalidQuote(String),
-
 }
