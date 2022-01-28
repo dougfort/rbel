@@ -6,7 +6,7 @@ pub trait Function {
     fn apply(
         &self,
         locals: HashMap<String, Object>,
-        params: HashMap<String, Object>,
+        params: Vec<Object>,
     ) -> Result<Object, BelError>;
 }
 

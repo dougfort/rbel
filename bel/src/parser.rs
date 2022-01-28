@@ -77,12 +77,10 @@ impl Parser {
                 }
                 _ => match self.state {
                     State::BuildSymbol if c.is_whitespace() => {
-                        self.list_stack[self.level].push(Object::Symbol(self.accum.clone()));
-                        self.state = State::ConsumeWhitespace;
+                        self.finish_build();
                     }
                     State::BuildChar if c.is_whitespace() => {
-                        self.list_stack[self.level].push(Object::Char(self.accum.clone()));
-                        self.state = State::ConsumeWhitespace;
+                        self.finish_build();
                     }
                     State::ConsumeWhitespace if c.is_whitespace() => {}
                     State::ConsumeWhitespace => {
@@ -135,6 +133,7 @@ impl Parser {
             self.finish_level();
             self.quoting_state = QuotingState::None;
         };
+        self.state = State::ConsumeWhitespace;
     }
 
     fn start_level(&mut self) {

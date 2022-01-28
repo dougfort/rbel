@@ -2,6 +2,7 @@ pub mod environment;
 pub mod error;
 mod function;
 pub mod parser;
+mod primatives;
 
 use std::fmt;
 
@@ -30,6 +31,14 @@ impl Object {
     pub fn is_nil(&self) -> bool {
         if let Object::Symbol(name) = self {
             name == "nil"
+        } else {
+            false
+        }
+    }
+
+    pub fn is_true(&self) -> bool {
+        if let Object::Symbol(name) = self {
+            name == "t"
         } else {
             false
         }
