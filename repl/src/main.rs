@@ -11,6 +11,7 @@ fn main() -> Result<(), Error> {
         println!("No previous history.");
     };
 
+    let mut parser = parser::Parser::new();
     let mut env = environment::Environment::new();
 
     'repl_loop: loop {
@@ -25,17 +26,8 @@ fn main() -> Result<(), Error> {
                     continue 'repl_loop;
                 }
                 rl.add_history_entry(line.as_str());
-                let object = match parser::parse(&line) {
-                    Ok(result) => {
-                        if result.is_empty() {
-                            continue 'repl_loop;
-                        }
-                        if result.len() == 1 {
-                            result[0].clone()
-                        } else {
-                            bel::Object::List(result)
-                        }
-                    }
+                let object = match parser.parse(&line) {
+                    Ok(object) => object,
                     Err(err) => {
                         eprintln!("error: {:?}", err);
                         continue 'repl_loop;
