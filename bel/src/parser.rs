@@ -54,14 +54,18 @@ impl Parser {
                     if let QuotingState::List = self.quoting_state {
                         self.finish_level();
                         self.quoting_state = QuotingState::None;
-                    }; 
+                    };
                     self.finish_level();
                 }
                 '\'' => {
-                    self.finish_build();
-                    self.start_level();
-                    self.list_stack[self.level].push(Object::Symbol("quote".to_string()));
-                    self.quoting_state = QuotingState::Starting; 
+                    if let QuotingState::None = self.quoting_state {
+                        self.finish_build();
+                        self.start_level();
+                        self.list_stack[self.level].push(Object::Symbol("quote".to_string()));
+                        self.quoting_state = QuotingState::Starting;
+                    } else {
+                        return Err(BelError::ParseError("Can't handle embedded '".to_string()));
+                    }
                 }
                 '\\' => {
                     self.finish_build();
@@ -88,7 +92,7 @@ impl Parser {
                         if let QuotingState::Starting = self.quoting_state {
                             self.quoting_state = QuotingState::Atom;
                         };
-                    },
+                    }
                     _ => {
                         self.accum.push(c);
                     }
@@ -97,7 +101,6 @@ impl Parser {
         }
 
         self.finish_build();
-
 
         if self.level > 0 {
             Err(BelError::ParseError(format!(
@@ -110,7 +113,7 @@ impl Parser {
             // if the parser result is a single Object return that
             // otherwise return an Object::List of the result
             let obj = match parse_list.len() {
-                0 => Object::Symbol("nil".to_string()), 
+                0 => Object::Symbol("nil".to_string()),
                 1 => parse_list[0].clone(),
                 _ => Object::List(parse_list),
             };
@@ -131,7 +134,7 @@ impl Parser {
         if let QuotingState::Atom = self.quoting_state {
             self.finish_level();
             self.quoting_state = QuotingState::None;
-        }; 
+        };
     }
 
     fn start_level(&mut self) {
