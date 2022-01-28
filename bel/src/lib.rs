@@ -2,7 +2,6 @@ pub mod environment;
 pub mod error;
 mod function;
 pub mod parser;
-mod primatives;
 
 use std::fmt;
 
