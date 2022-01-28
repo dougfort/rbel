@@ -35,6 +35,14 @@ impl Object {
         }
     }
 
+    pub fn is_true(&self) -> bool {
+        if let Object::Symbol(name) = self {
+            name == "t"
+        } else {
+            false
+        }
+    }
+
     pub fn is_quote(&self) -> bool {
         if let Object::Symbol(name) = self {
             name == "quote"
