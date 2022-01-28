@@ -9,11 +9,19 @@ enum State {
     BuildChar,
 }
 
+enum QuotingState {
+    None,
+    Starting,
+    Atom,
+    List,
+}
+
 pub struct Parser {
     level: usize,
     accum: String,
     list_stack: Vec<Vec<Object>>,
     state: State,
+    quoting_state: QuotingState,
 }
 
 impl Parser {
@@ -23,6 +31,7 @@ impl Parser {
             accum: String::new(),
             list_stack: Vec::new(),
             state: State::ConsumeWhitespace,
+            quoting_state: QuotingState::None,
         }
     }
 
@@ -32,6 +41,7 @@ impl Parser {
         // start with an outer list whether we need it or not
         self.list_stack = vec![Vec::new()];
         self.state = State::ConsumeWhitespace;
+        self.quoting_state = QuotingState::None;
 
         for c in input.chars() {
             match c {
@@ -41,11 +51,25 @@ impl Parser {
                 }
                 ')' => {
                     self.finish_build();
+                    if let QuotingState::List = self.quoting_state {
+                        self.finish_level();
+                        self.quoting_state = QuotingState::None;
+                    }; 
                     self.finish_level();
                 }
+                '\'' => {
+                    self.finish_build();
+                    self.start_level();
+                    self.list_stack[self.level].push(Object::Symbol("quote".to_string()));
+                    self.quoting_state = QuotingState::Starting; 
+                }
                 '\\' => {
+                    self.finish_build();
                     self.accum.clear();
                     self.state = State::BuildChar;
+                    if let QuotingState::Starting = self.quoting_state {
+                        self.quoting_state = QuotingState::Atom;
+                    };
                 }
                 _ => match self.state {
                     State::BuildSymbol if c.is_whitespace() => {
@@ -61,20 +85,26 @@ impl Parser {
                         self.accum.clear();
                         self.accum.push(c);
                         self.state = State::BuildSymbol;
-                    }
+                        if let QuotingState::Starting = self.quoting_state {
+                            self.quoting_state = QuotingState::Atom;
+                        };
+                    },
                     _ => {
                         self.accum.push(c);
                     }
                 },
             }
         }
+
+        self.finish_build();
+
+
         if self.level > 0 {
             Err(BelError::ParseError(format!(
                 "invalid level: {}",
                 self.level
             )))
         } else {
-            self.finish_build();
             let parse_list = self.list_stack[0].clone();
 
             // if the parser result is a single Object return that
@@ -97,13 +127,20 @@ impl Parser {
                 self.list_stack[self.level].push(Object::Char(self.accum.clone()));
             }
             _ => {}
-        }
+        };
+        if let QuotingState::Atom = self.quoting_state {
+            self.finish_level();
+            self.quoting_state = QuotingState::None;
+        }; 
     }
 
     fn start_level(&mut self) {
         self.list_stack.push(Vec::<Object>::new());
         self.level += 1;
         self.state = State::ConsumeWhitespace;
+        if let QuotingState::Starting = self.quoting_state {
+            self.quoting_state = QuotingState::List;
+        };
     }
 
     fn finish_level(&mut self) {
@@ -196,6 +233,43 @@ mod tests {
                     Object::Symbol("a".to_string()),
                     Object::Symbol("b".to_string()),
                     Object::List(vec![Object::Symbol("c".to_string())]),
+                ]
+            );
+        } else {
+            panic!("unexpected return type: {:?}", parse_obj);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn can_parse_quoted_symbol() -> Result<(), BelError> {
+        let mut parser = Parser::new();
+        let parse_obj = parser.parse("'a")?;
+        if let Object::List(l) = parse_obj {
+            assert_eq!(
+                l,
+                vec![
+                    Object::Symbol("quote".to_string()),
+                    Object::Symbol("a".to_string()),
+                ]
+            );
+        } else {
+            panic!("unexpected return type: {:?}", parse_obj);
+        }
+
+        Ok(())
+    }
+    #[test]
+    fn can_parse_quoted_list() -> Result<(), BelError> {
+        let mut parser = Parser::new();
+        let parse_obj = parser.parse("'(a)")?;
+        if let Object::List(l) = parse_obj {
+            assert_eq!(
+                l,
+                vec![
+                    Object::Symbol("quote".to_string()),
+                    Object::List(vec![Object::Symbol("a".to_string())]),
                 ]
             );
         } else {
