@@ -43,15 +43,22 @@ impl Environment {
                 if let Object::Symbol(name) = list[0].clone() {
                     match name.as_ref() {
                         "set" => {
-                            return self.set(list);
+                            return self.set(&list[1..]);
                         }
-                       "quote" => {
-                            return self.quote(list);
+                        "def" => {
+                            return self.def(&list[1..]);
+                        }
+                        "quote" => {
+                            return self.quote(&list[1..]);
                         }
                         "id" => {
                             return self.id(&list[1..]);
                         }
-                        _ => {}
+                        _ => {
+                            // if the leading symbol refers to a function,
+                            // we apply the function
+                            
+                        }
                     }
                 }
                 let mut evaluated_list = Vec::new();
@@ -70,8 +77,8 @@ impl Environment {
         Ok(output)
     }
 
-    fn set(&mut self, list: &Vec<Object>) -> Result<Object, BelError> {
-        for i in 1..list.len() - 1 {
+    fn set(&mut self, list: &[Object]) -> Result<Object, BelError> {
+        for i in 0..list.len() - 1 {
             if let Object::Symbol(key) = list[i].clone() {
                 self.global.insert(key, list[i + 1].clone());
             } else {
@@ -82,9 +89,9 @@ impl Environment {
             }
         }
         // append nil if the final arg isn't present
-        // an even number of entries (including 'set')
+        // an odd number of entries
         // means the last value is unspecified
-        if list.len() % 2 == 0 {
+        if list.len() % 2 == 1 {
             let i = list.len() - 1;
             if let Object::Symbol(key) = list[i].clone() {
                 self.global.insert(key, Object::Symbol("nil".to_string()));
@@ -98,10 +105,32 @@ impl Environment {
         Ok(Object::Symbol("nil".to_string()))
     }
 
+    // When you see
+    //  (def n p e)
+    // treat it as an abbreviation for 
+    //  (set n (lit clo nil p e))
+    fn def(&mut self, list: &[Object]) -> Result<Object, BelError> {
+        if list.len() == 3 {
+            let n = list[0].clone();
+            let p = list[1].clone();
+            let e = list[2].clone();
+            let body = Object::List(vec![
+                Object::Symbol("lit".to_string()),
+                Object::Symbol("clo".to_string()),
+                Object::Symbol("nil".to_string()),
+                p, 
+                e,
+            ]);
+            self.set(&[n, body])
+        } else {
+            Err(BelError::InvalidDef(format!("{:?}", list)))
+        }        
+    }
+
     fn quote(&self, list: &[Object]) -> Result<Object, BelError> {
-       if list.len() == 2 {
+       if list.len() == 1 {
             // return the inner object without evaluating
-            Ok(list[1].clone())
+            Ok(list[0].clone())
         } else {
             Err(BelError::InvalidQuote(format!("{:?}", list)))
         }        
@@ -174,6 +203,58 @@ mod tests {
     }
 
     #[test]
+    fn can_set_multiple() -> Result<(), BelError> {
+        let mut parser = parser::Parser::new();
+        let mut env = Environment::new();
+
+        let parse_obj = parser.parse("(set a b c d e f)")?;
+        let obj = env.evaluate(&parse_obj)?;
+        assert!(obj.is_nil());
+
+        for (key, val) in vec![
+            ("a", "b"),
+            ("c", "d"),
+            ("e", "f"),            
+        ] {
+            let parse_obj = parser.parse(key)?;
+            let obj = env.evaluate(&parse_obj)?;
+            if let Object::Symbol(s) = obj {
+                assert_eq!(s, val);
+            } else {
+                panic!("unexpected object {:?}", obj);
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn can_set_multiple_with_default() -> Result<(), BelError> {
+        let mut parser = parser::Parser::new();
+        let mut env = Environment::new();
+
+        let parse_obj = parser.parse("(set a b c d e)")?;
+        let obj = env.evaluate(&parse_obj)?;
+        assert!(obj.is_nil());
+
+        for (key, val) in vec![
+            ("a", "b"),
+            ("c", "d"),
+            ("e", "nil"),            
+        ] {
+            let parse_obj = parser.parse(key)?;
+            let obj = env.evaluate(&parse_obj)?;
+            if let Object::Symbol(s) = obj {
+                assert_eq!(s, val);
+            } else {
+                panic!("unexpected object {:?}", obj);
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn can_quote_symbol() -> Result<(), BelError> {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
@@ -209,4 +290,27 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn can_def_a_function() -> Result<(), BelError> {
+        let mut parser = parser::Parser::new();
+        let mut env = Environment::new();
+
+        let parse_obj = parser.parse(
+    r#"(def no (x)
+                (id x nil))
+          "#
+        )?;
+        let obj = env.evaluate(&parse_obj)?;
+        assert!(obj.is_nil());
+
+        let parse_obj = parser.parse("(no nil)")?;
+        let obj = env.evaluate(&parse_obj)?;
+        assert!(obj.is_true());
+
+        let parse_obj = parser.parse("(no 'a)")?;
+        let obj = env.evaluate(&parse_obj)?;
+        assert!(obj.is_nil());
+
+        Ok(())
+    }
 }
