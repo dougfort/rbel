@@ -1,20 +1,19 @@
 use crate::error::BelError;
 use crate::object::Object;
+use crate::primatives::{PrimFunc, load_primatives};
 use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct Environment {
     pub globals: HashMap<String, Object>,
-    primatives: HashMap<String, EnvFunc>,
+    primatives: HashMap<String, PrimFunc>,
 }
-
-type EnvFunc = fn(&mut Environment, &[Object]) -> Result<Object, BelError>;
 
 impl Environment {
     pub fn new() -> Self {
         let mut env = Environment {
             globals: HashMap::new(),
-            primatives: HashMap::new(),
+            primatives: load_primatives(),
         };
 
         // some Symbols bind to themselves
@@ -26,8 +25,6 @@ impl Environment {
         ] {
             env.globals.insert(name.clone(), Object::Symbol(name));
         }
-
-        env.primatives.insert("id".to_string(), id);
 
         env
     }
@@ -58,7 +55,7 @@ impl Environment {
                         }
                         n if self.primatives.contains_key(n) => {
                             let evaluated_list = self.evaluate_list(locals, &list[1..])?;
-                            return self.primatives[n](self, &evaluated_list);
+                            return self.primatives[n](&evaluated_list);
                         }
                         _ => {
                             // if the leading symbol refers to a function,
@@ -95,7 +92,7 @@ impl Environment {
         if let Object::Symbol(name) = fn_list[0].clone() {
             let evaluated_list = self.evaluate_list(&locals, &fn_list[1..])?;
             if self.primatives.contains_key(&name) {
-                return self.primatives[&name](self, &evaluated_list);
+                return self.primatives[&name](&evaluated_list);
             }
         } else {
             return Err(BelError::InvalidFn(
@@ -290,24 +287,6 @@ fn get_function_list(fn_obj: &Object) -> Result<Vec<Object>, BelError> {
     }
 }
 
-fn id(_env: &mut Environment, params: &[Object]) -> Result<Object, BelError> {
-    // id is true if
-    // * there are two arguments
-    // * they are both symbols
-    // they have the same name
-    let mut result = Object::Symbol("nil".to_string());
-    if params.len() == 2 {
-        if let Object::Symbol(lhs) = &params[0] {
-            if let Object::Symbol(rhs) = &params[1] {
-                if lhs == rhs {
-                    result = Object::Symbol("t".to_string());
-                }
-            }
-        }
-    }
-
-    Ok(result)
-}
 #[cfg(test)]
 mod tests {
 
