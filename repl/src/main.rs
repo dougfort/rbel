@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Error};
-use bel::{environment, parser};
+use bel::{environment, parser, Object};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
@@ -20,7 +22,7 @@ fn main() -> Result<(), Error> {
             Ok(line) => {
                 if line == ":global" {
                     println!("global");
-                    for (key, value) in &env.global {
+                    for (key, value) in &env.globals {
                         println!("({}, {:?}", key, value);
                     }
                     continue 'repl_loop;
@@ -33,7 +35,8 @@ fn main() -> Result<(), Error> {
                         continue 'repl_loop;
                     }
                 };
-                match env.evaluate(&object) {
+                let locals: HashMap<String, Object> = HashMap::new();
+                match env.evaluate(&locals, &object) {
                     Ok(evaluated_object) => println!("evaluated: {:?}", evaluated_object),
                     Err(err) => eprintln!("error: {:?}", err),
                 };
