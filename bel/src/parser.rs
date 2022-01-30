@@ -1,7 +1,7 @@
 use std::default;
 
 use crate::error::BelError;
-use crate::Object;
+use crate::object::Object;
 
 enum State {
     ConsumeWhitespace,

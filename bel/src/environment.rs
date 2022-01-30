@@ -1,5 +1,5 @@
 use crate::error::BelError;
-use crate::Object;
+use crate::object::Object;
 use std::collections::HashMap;
 
 #[derive(Default)]
