@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct Environment {
-    pub global: HashMap<String, Object>,
+    pub globals: HashMap<String, Object>,
     primatives: HashMap<String, EnvFunc>,
 }
 
@@ -13,7 +13,7 @@ type EnvFunc = fn(&mut Environment, &[Object]) -> Result<Object, BelError>;
 impl Environment {
     pub fn new() -> Self {
         let mut env = Environment {
-            global: HashMap::new(),
+            globals: HashMap::new(),
             primatives: HashMap::new(),
         };
 
@@ -24,7 +24,7 @@ impl Environment {
             "o".to_string(),
             "apply".to_string(),
         ] {
-            env.global.insert(name.clone(), Object::Symbol(name));
+            env.globals.insert(name.clone(), Object::Symbol(name));
         }
 
         env.primatives.insert("id".to_string(), id);
@@ -33,9 +33,13 @@ impl Environment {
     }
 
     // Return an object that is reduced to its lowest terms
-    pub fn evaluate(&mut self, obj: &Object) -> Result<Object, BelError> {
+    pub fn evaluate(
+        &mut self,
+        locals: &HashMap<String, Object>,
+        obj: &Object,
+    ) -> Result<Object, BelError> {
         let output = match obj {
-            Object::Symbol(name) => self.get_global(name)?,
+            Object::Symbol(name) => self.get_bound_object(locals, name)?,
             Object::List(list) => {
                 if list.is_empty() {
                     return Ok(Object::Symbol("nil".to_string()));
@@ -53,21 +57,22 @@ impl Environment {
                             return self.quote(&list[1..]);
                         }
                         n if self.primatives.contains_key(n) => {
-                            let evaluated_list = self.evaluate_list(&list[1..])?;
+                            let evaluated_list = self.evaluate_list(locals, &list[1..])?;
                             return self.primatives[n](self, &evaluated_list);
                         }
                         _ => {
                             // if the leading symbol refers to a function,
                             // we apply the function
-                            let obj = self.get_global(&name)?;
+                            let obj = self.get_bound_object(locals, &name)?;
                             if obj.is_function() {
-                                let evaluated_list = self.evaluate_list(&list[1..])?;
+                                let evaluated_list = self.evaluate_list(locals, &list[1..])?;
                                 return self.apply(&obj, &evaluated_list);
                             }
                         }
                     }
                 }
-                let evaluated_list = self.evaluate_list(&list[1..])?;
+                let locals: HashMap<String, Object> = HashMap::new();
+                let evaluated_list = self.evaluate_list(&locals, &list[1..])?;
                 Object::List(evaluated_list)
             }
             Object::Char(_c) => {
@@ -79,30 +84,60 @@ impl Environment {
         Ok(output)
     }
 
-    fn apply(&mut self, _fn_obj: &Object, _args: &[Object]) -> Result<Object, BelError> {
-        Err(BelError::NotImplemented("apply".to_string()))
+    fn apply(&mut self, fn_obj: &Object, args: &[Object]) -> Result<Object, BelError> {
+        // we expect the function list to be the 5th of 5 objects in the function
+        // (lit clo nil p e)
+        let locals = merge_args(fn_obj, args)?;
+        let fn_list = get_function_list(fn_obj)?;
+        if fn_list.is_empty() {
+            return Err(BelError::InvalidFn("empty function list".to_string()));
+        }
+        if let Object::Symbol(name) = fn_list[0].clone() {
+            let evaluated_list = self.evaluate_list(&locals, &fn_list[1..])?;
+            if self.primatives.contains_key(&name) {
+                return self.primatives[&name](self, &evaluated_list);
+            }
+        } else {
+            return Err(BelError::InvalidFn(
+                "function list does not begin wiht a symbol".to_string(),
+            ));
+        }
+
+        Ok(Object::Symbol("nil".to_string()))
     }
 
-    fn evaluate_list(&mut self, list: &[Object]) -> Result<Vec<Object>, BelError> {
+    fn evaluate_list(
+        &mut self,
+        locals: &HashMap<String, Object>,
+        list: &[Object],
+    ) -> Result<Vec<Object>, BelError> {
         let mut evaluated_list = Vec::new();
         for item in list {
-            let eval_item = self.evaluate(item)?;
+            let eval_item = self.evaluate(locals, item)?;
             evaluated_list.push(eval_item);
         }
         Ok(evaluated_list)
     }
 
-    fn get_global(&self, name: &str) -> Result<Object, BelError> {
-        match self.global.get(name) {
+    fn get_bound_object(
+        &self,
+        locals: &HashMap<String, Object>,
+        name: &str,
+    ) -> Result<Object, BelError> {
+        // look first in locals, then in globals
+        match locals.get(name) {
             Some(obj) => Ok(obj.clone()),
-            None => Err(BelError::UnboundSymbol(name.to_string())),
+            None => match self.globals.get(name) {
+                Some(obj) => Ok(obj.clone()),
+                None => Err(BelError::UnboundSymbol(name.to_string())),
+            },
         }
     }
 
     fn set(&mut self, list: &[Object]) -> Result<Object, BelError> {
         for i in 0..list.len() - 1 {
             if let Object::Symbol(key) = list[i].clone() {
-                self.global.insert(key, list[i + 1].clone());
+                self.globals.insert(key, list[i + 1].clone());
             } else {
                 return Err(BelError::InvalidObject {
                     expected: "symbol".to_string(),
@@ -116,7 +151,7 @@ impl Environment {
         if list.len() % 2 == 1 {
             let i = list.len() - 1;
             if let Object::Symbol(key) = list[i].clone() {
-                self.global.insert(key, Object::Symbol("nil".to_string()));
+                self.globals.insert(key, Object::Symbol("nil".to_string()));
             } else {
                 return Err(BelError::InvalidObject {
                     expected: "symbol".to_string(),
@@ -169,6 +204,92 @@ impl Environment {
     }
 }
 
+fn merge_args(fn_obj: &Object, args: &[Object]) -> Result<HashMap<String, Object>, BelError> {
+    // merge the arguments with the function object's parameters
+    // we expect the parameters list to be the 4th of 5 objects in the function
+    // (lit clo nil p e)
+    if let Object::List(fn_list) = fn_obj {
+        if fn_list.len() != 5 {
+            return Err(BelError::InvalidFn(format!(
+                "expected 5 items found {}",
+                fn_list.len()
+            )));
+        }
+        if let Object::List(params) = &fn_list[3] {
+            if args.len() > params.len() {
+                return Err(BelError::InvalidFn(format!(
+                    "expected {} or fewer args found {}",
+                    params.len(),
+                    args.len()
+                )));
+            }
+            let mut merged: HashMap<String, Object> = HashMap::new();
+
+            for i in 0..args.len() {
+                if let Object::Symbol(param_str) = &params[i] {
+                    merged.insert(param_str.to_string(), args[i].clone());
+                } else {
+                    return Err(BelError::InvalidObject {
+                        expected: "symbol".to_string(),
+                        found: params[i].t(),
+                    });
+                }
+            }
+
+            // if we have unmatched params, fill with nil
+            if args.len() < params.len() {
+                for param in &params[args.len()..] {
+                    if let Object::Symbol(param_str) = param {
+                        merged.insert(param_str.to_string(), Object::Symbol("nil".to_string()));
+                    } else {
+                        return Err(BelError::InvalidObject {
+                            expected: "symbol".to_string(),
+                            found: param.t(),
+                        });
+                    }
+                }
+            }
+
+            Ok(merged)
+        } else {
+            Err(BelError::InvalidObject {
+                expected: "list".to_string(),
+                found: fn_obj.t(),
+            })
+        }
+    } else {
+        Err(BelError::InvalidObject {
+            expected: "list".to_string(),
+            found: fn_obj.t(),
+        })
+    }
+}
+
+fn get_function_list(fn_obj: &Object) -> Result<Vec<Object>, BelError> {
+    if let Object::List(fn_list) = fn_obj {
+        if fn_list.len() != 5 {
+            return Err(BelError::InvalidFn(format!(
+                "expected 5 items found {}",
+                fn_list.len()
+            )));
+        }
+
+        if let Object::List(list) = &fn_list[4] {
+            Ok(list.to_vec())
+        } else {
+            Err(BelError::InvalidObject {
+                expected: "list".to_string(),
+                found: fn_list[4].t(),
+            })
+        }
+    } else {
+        Err(BelError::InvalidObject {
+            expected: "list".to_string(),
+            found: fn_obj.t(),
+        })
+    }
+}
+
 fn id(_env: &mut Environment, params: &[Object]) -> Result<Object, BelError> {
     // id is true if
     // * there are two arguments
@@ -202,7 +323,8 @@ mod tests {
             Object::Symbol("o".to_string()),
             Object::Symbol("apply".to_string()),
         ] {
-            let res = env.evaluate(&obj)?;
+            let locals: HashMap<String, Object> = HashMap::new();
+            let res = env.evaluate(&locals, &obj)?;
             assert_eq!(res, obj);
         }
         assert_eq!(2 + 2, 4);
@@ -211,16 +333,17 @@ mod tests {
     }
 
     #[test]
-    fn can_set_global() -> Result<(), BelError> {
+    fn can_set_globals() -> Result<(), BelError> {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
+        let locals: HashMap<String, Object> = HashMap::new();
 
         let parse_obj = parser.parse("(set a b)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil());
 
         let parse_obj = parser.parse("a")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         if let Object::Symbol(s) = obj {
             assert_eq!(s, "b");
         } else {
@@ -234,9 +357,10 @@ mod tests {
     fn can_set_multiple() -> Result<(), BelError> {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
+        let locals: HashMap<String, Object> = HashMap::new();
 
         let parse_obj = parser.parse("(set a b c d e f)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil());
 
         for (key, val) in &[
@@ -245,7 +369,7 @@ mod tests {
             ("e", "f".to_string()),
         ] {
             let parse_obj = parser.parse(key)?;
-            let obj = env.evaluate(&parse_obj)?;
+            let obj = env.evaluate(&locals, &parse_obj)?;
             if let Object::Symbol(s) = obj {
                 assert_eq!(&s, val);
             } else {
@@ -260,9 +384,10 @@ mod tests {
     fn can_set_multiple_with_default() -> Result<(), BelError> {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
+        let locals: HashMap<String, Object> = HashMap::new();
 
         let parse_obj = parser.parse("(set a b c d e)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil());
 
         for (key, val) in &[
@@ -271,7 +396,7 @@ mod tests {
             ("e", "nil".to_string()),
         ] {
             let parse_obj = parser.parse(key)?;
-            let obj = env.evaluate(&parse_obj)?;
+            let obj = env.evaluate(&locals, &parse_obj)?;
             if let Object::Symbol(s) = obj {
                 assert_eq!(&s, val);
             } else {
@@ -286,13 +411,14 @@ mod tests {
     fn can_quote_symbol() -> Result<(), BelError> {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
+        let locals: HashMap<String, Object> = HashMap::new();
 
         let parse_obj = parser.parse("(set a b)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil());
 
         let parse_obj = parser.parse("(quote a)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         if let Object::Symbol(s) = obj {
             assert_eq!(s, "a");
         } else {
@@ -306,13 +432,14 @@ mod tests {
     fn id_checks_for_identity() -> Result<(), BelError> {
         let mut parser = parser::Parser::new();
         let mut env = Environment::new();
+        let locals: HashMap<String, Object> = HashMap::new();
 
         let parse_obj = parser.parse("(id 'a 'a)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_true());
 
         let parse_obj = parser.parse("(id 'a 'b)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil());
 
         Ok(())
@@ -328,16 +455,19 @@ mod tests {
                 (id x nil))
           "#,
         )?;
-        let obj = env.evaluate(&parse_obj)?;
+        let locals: HashMap<String, Object> = HashMap::new();
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil());
 
         let parse_obj = parser.parse("(no nil)")?;
-        let obj = env.evaluate(&parse_obj)?;
+        let locals: HashMap<String, Object> = HashMap::new();
+        let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_true());
 
         let parse_obj = parser.parse("(no 'a)")?;
-        let obj = env.evaluate(&parse_obj)?;
-        assert!(obj.is_nil());
+        let locals: HashMap<String, Object> = HashMap::new();
+        let obj = env.evaluate(&locals, &parse_obj)?;
+        assert!(obj.is_nil(), "{:?}", obj);
 
         Ok(())
     }

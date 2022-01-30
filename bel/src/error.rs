@@ -19,4 +19,7 @@ pub enum BelError {
 
     #[error("invalid def: {0}")]
     InvalidDef(String),
+
+    #[error("invalid fn: {0}")]
+    InvalidFn(String),
 }
