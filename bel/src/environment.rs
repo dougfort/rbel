@@ -2,15 +2,19 @@ use crate::error::BelError;
 use crate::Object;
 use std::collections::HashMap;
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct Environment {
     pub global: HashMap<String, Object>,
+    primatives: HashMap<String, EnvFunc>,
 }
+
+type EnvFunc = fn(&mut Environment, &[Object]) -> Result<Object, BelError>;
 
 impl Environment {
     pub fn new() -> Self {
         let mut env = Environment {
             global: HashMap::new(),
+            primatives: HashMap::new(),
         };
 
         // some Symbols bind to themselves
@@ -23,18 +27,15 @@ impl Environment {
             env.global.insert(name.clone(), Object::Symbol(name));
         }
 
+        env.primatives.insert("id".to_string(), id);
+
         env
     }
 
     // Return an object that is reduced to its lowest terms
     pub fn evaluate(&mut self, obj: &Object) -> Result<Object, BelError> {
         let output = match obj {
-            Object::Symbol(name) => match self.global.get(name) {
-                Some(obj) => obj.clone(),
-                None => {
-                    return Err(BelError::UnboundSymbol(name.clone()));
-                }
-            },
+            Object::Symbol(name) => self.get_global(name)?,
             Object::List(list) => {
                 if list.is_empty() {
                     return Ok(Object::Symbol("nil".to_string()));
@@ -51,21 +52,22 @@ impl Environment {
                         "quote" => {
                             return self.quote(&list[1..]);
                         }
-                        "id" => {
-                            return self.id(&list[1..]);
+                        n if self.primatives.contains_key(n) => {
+                            let evaluated_list = self.evaluate_list(&list[1..])?;
+                            return self.primatives[n](self, &evaluated_list);
                         }
                         _ => {
                             // if the leading symbol refers to a function,
                             // we apply the function
-                            
+                            let obj = self.get_global(&name)?;
+                            if obj.is_function() {
+                                let evaluated_list = self.evaluate_list(&list[1..])?;
+                                return self.apply(&obj, &evaluated_list);
+                            }
                         }
                     }
                 }
-                let mut evaluated_list = Vec::new();
-                for item in list {
-                    let eval_item = self.evaluate(item)?;
-                    evaluated_list.push(eval_item);
-                }
+                let evaluated_list = self.evaluate_list(&list[1..])?;
                 Object::List(evaluated_list)
             }
             Object::Char(_c) => {
@@ -75,6 +77,26 @@ impl Environment {
         };
 
         Ok(output)
+    }
+
+    fn apply(&mut self, _fn_obj: &Object, _args: &[Object]) -> Result<Object, BelError> {
+        Err(BelError::NotImplemented("apply".to_string()))
+    }
+
+    fn evaluate_list(&mut self, list: &[Object]) -> Result<Vec<Object>, BelError> {
+        let mut evaluated_list = Vec::new();
+        for item in list {
+            let eval_item = self.evaluate(item)?;
+            evaluated_list.push(eval_item);
+        }
+        Ok(evaluated_list)
+    }
+
+    fn get_global(&self, name: &str) -> Result<Object, BelError> {
+        match self.global.get(name) {
+            Some(obj) => Ok(obj.clone()),
+            None => Err(BelError::UnboundSymbol(name.to_string())),
+        }
     }
 
     fn set(&mut self, list: &[Object]) -> Result<Object, BelError> {
@@ -107,58 +129,64 @@ impl Environment {
 
     // When you see
     //  (def n p e)
-    // treat it as an abbreviation for 
+    // treat it as an abbreviation for
     //  (set n (lit clo nil p e))
     fn def(&mut self, list: &[Object]) -> Result<Object, BelError> {
         if list.len() == 3 {
-            let n = list[0].clone();
+            let name = list[0].clone();
+
             let p = list[1].clone();
+            // we want the parameters to be a list
+            let parameters = if p.is_nil() {
+                Object::List(vec![])
+            } else if let Object::List(_) = p {
+                p
+            } else {
+                Object::List(vec![p])
+            };
+
             let e = list[2].clone();
             let body = Object::List(vec![
                 Object::Symbol("lit".to_string()),
                 Object::Symbol("clo".to_string()),
                 Object::Symbol("nil".to_string()),
-                p, 
+                parameters,
                 e,
             ]);
-            self.set(&[n, body])
+            self.set(&[name, body])
         } else {
             Err(BelError::InvalidDef(format!("{:?}", list)))
-        }        
+        }
     }
 
     fn quote(&self, list: &[Object]) -> Result<Object, BelError> {
-       if list.len() == 1 {
+        if list.len() == 1 {
             // return the inner object without evaluating
             Ok(list[0].clone())
         } else {
             Err(BelError::InvalidQuote(format!("{:?}", list)))
-        }        
+        }
     }
+}
 
-    fn id(&mut self, params: &[Object]) -> Result<Object, BelError> {
-        // id is true if 
-        // * there are two arguments
-        // * they are both symbols
-        // they have the same name
-        let mut result = Object::Symbol("nil".to_string());
-        if params.len() == 2 {
-            let arg0 = self.evaluate(&params[0])?;
-            if let Object::Symbol(lhs) = arg0 {
-                let arg1 = self.evaluate(&params[1])?;
-                if let Object::Symbol(rhs) = arg1 {
-                    if lhs == rhs {
-                        result = Object::Symbol("t".to_string());
-                    }
+fn id(_env: &mut Environment, params: &[Object]) -> Result<Object, BelError> {
+    // id is true if
+    // * there are two arguments
+    // * they are both symbols
+    // they have the same name
+    let mut result = Object::Symbol("nil".to_string());
+    if params.len() == 2 {
+        if let Object::Symbol(lhs) = &params[0] {
+            if let Object::Symbol(rhs) = &params[1] {
+                if lhs == rhs {
+                    result = Object::Symbol("t".to_string());
                 }
             }
         }
-            
-        Ok(result)
     }
-    
-}
 
+    Ok(result)
+}
 #[cfg(test)]
 mod tests {
 
@@ -211,15 +239,15 @@ mod tests {
         let obj = env.evaluate(&parse_obj)?;
         assert!(obj.is_nil());
 
-        for (key, val) in vec![
-            ("a", "b"),
-            ("c", "d"),
-            ("e", "f"),            
+        for (key, val) in &[
+            ("a", "b".to_string()),
+            ("c", "d".to_string()),
+            ("e", "f".to_string()),
         ] {
             let parse_obj = parser.parse(key)?;
             let obj = env.evaluate(&parse_obj)?;
             if let Object::Symbol(s) = obj {
-                assert_eq!(s, val);
+                assert_eq!(&s, val);
             } else {
                 panic!("unexpected object {:?}", obj);
             }
@@ -237,15 +265,15 @@ mod tests {
         let obj = env.evaluate(&parse_obj)?;
         assert!(obj.is_nil());
 
-        for (key, val) in vec![
-            ("a", "b"),
-            ("c", "d"),
-            ("e", "nil"),            
+        for (key, val) in &[
+            ("a", "b".to_string()),
+            ("c", "d".to_string()),
+            ("e", "nil".to_string()),
         ] {
             let parse_obj = parser.parse(key)?;
             let obj = env.evaluate(&parse_obj)?;
             if let Object::Symbol(s) = obj {
-                assert_eq!(s, val);
+                assert_eq!(&s, val);
             } else {
                 panic!("unexpected object {:?}", obj);
             }
@@ -296,9 +324,9 @@ mod tests {
         let mut env = Environment::new();
 
         let parse_obj = parser.parse(
-    r#"(def no (x)
+            r#"(def no (x)
                 (id x nil))
-          "#
+          "#,
         )?;
         let obj = env.evaluate(&parse_obj)?;
         assert!(obj.is_nil());

@@ -50,6 +50,37 @@ impl Object {
             false
         }
     }
+
+    fn is_literal(&self) -> bool {
+        if let Object::Symbol(name) = self {
+            name == "lit"
+        } else {
+            false
+        }
+    }
+
+    fn is_closure(&self) -> bool {
+        if let Object::Symbol(name) = self {
+            name == "clo"
+        } else {
+            false
+        }
+    }
+
+    pub fn is_function(&self) -> bool {
+        if let Object::List(list) = self {
+            //  (set n (lit clo nil p e))
+            if list.len() != 5 {
+                return false;
+            }
+            if !list[0].is_literal() {
+                return false;
+            }
+            return list[1].is_closure();
+        }
+
+        false
+    }
 }
 
 impl fmt::Display for Object {
