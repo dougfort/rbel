@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Error};
-use bel::{environment, parser, Object};
+use bel::{environment, object, parser};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
@@ -35,7 +35,7 @@ fn main() -> Result<(), Error> {
                         continue 'repl_loop;
                     }
                 };
-                let locals: HashMap<String, Object> = HashMap::new();
+                let locals: HashMap<String, object::Object> = HashMap::new();
                 match env.evaluate(&locals, &object) {
                     Ok(evaluated_object) => println!("evaluated: {:?}", evaluated_object),
                     Err(err) => eprintln!("error: {:?}", err),
