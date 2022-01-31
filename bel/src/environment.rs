@@ -1,6 +1,6 @@
 use crate::error::BelError;
 use crate::object::Object;
-use crate::primatives::{PrimFunc, load_primatives};
+use crate::primatives::{load_primatives, PrimFunc};
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -37,6 +37,9 @@ impl Environment {
     ) -> Result<Object, BelError> {
         let output = match obj {
             Object::Symbol(name) => self.get_bound_object(locals, name)?,
+            Object::Pair(_p) => {
+                return Err(BelError::NotImplemented("Object::Pair".to_string()));
+            }
             Object::List(list) => {
                 if list.is_empty() {
                     return Ok(Object::Symbol("nil".to_string()));

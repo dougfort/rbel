@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use crate::object::Object;
 use crate::error::BelError;
+use crate::object::Object;
 
 pub type PrimFunc = fn(&[Object]) -> Result<Object, BelError>;
 
 pub fn load_primatives() -> HashMap<String, PrimFunc> {
-    let mut prim: HashMap<String, PrimFunc>  = HashMap::new();
+    let mut prim: HashMap<String, PrimFunc> = HashMap::new();
 
     prim.insert("id".to_string(), id);
 

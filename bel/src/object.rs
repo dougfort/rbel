@@ -7,6 +7,7 @@ use std::fmt;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
     Symbol(String),
+    Pair(Box<(Object, Object)>),
     List(Vec<Object>),
     Char(String),
     Stream,
@@ -16,6 +17,7 @@ impl Object {
     pub fn t(&self) -> String {
         match &self {
             Object::Symbol(_) => "symbol".to_string(),
+            Object::Pair(_) => "pair".to_string(),
             Object::List(_) => "list".to_string(),
             Object::Char(_) => "char".to_string(),
             Object::Stream => "stream".to_string(),
@@ -83,6 +85,7 @@ impl fmt::Display for Object {
         use self::Object::*;
         match &self {
             Symbol(word) => write!(f, "{}", word),
+            Pair(pair) => write!(f, "({} . {})", pair.0, pair.1),
             List(l) => write!(f, "{:?}", l),
             Char(c) => write!(f, "\\{}", c),
             Stream => write!(f, "<stream>"),
