@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Error};
+use bel::environment::Environment;
+use bel::loader;
 use bel::{environment, object, parser};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -20,14 +22,11 @@ fn main() -> Result<(), Error> {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                if line == ":global" {
-                    println!("global");
-                    for (key, value) in &env.globals {
-                        println!("({}, {:?}", key, value);
-                    }
+                rl.add_history_entry(line.as_str());
+                if line.starts_with(':') {
+                    process_repl_command(&mut env, &line);
                     continue 'repl_loop;
                 }
-                rl.add_history_entry(line.as_str());
                 let object = match parser.parse(&line) {
                     Ok(object) => object,
                     Err(err) => {
@@ -57,4 +56,31 @@ fn main() -> Result<(), Error> {
     rl.save_history("history.txt").unwrap();
 
     Ok(())
+}
+
+fn process_repl_command(env: &mut Environment, line: &str) {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    match parts[0] {
+        ":global" | ":globals" => {
+            println!("global");
+            for (key, value) in &env.globals {
+                println!("({}, {:?}", key, value);
+            }
+        }
+        ":load" => {
+            if parts.len() != 2 {
+                println!("load: <filepah>");
+                return;
+            }
+            match loader::load(env, parts[1]) {
+                Ok(()) => {}
+                Err(err) => {
+                    println!("error: during :load; {:?}", err);
+                }
+            }
+        }
+        _ => {
+            println!("error: unkbnown REPL command {}", line);
+        }
+    }
 }

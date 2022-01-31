@@ -1,4 +1,5 @@
-﻿; Bel in Bel. 9 October 2019, 9:14 GMT
+﻿
+; Bel in Bel. 9 October 2019, 9:14 GMT
 
 
 (def no (x)
@@ -1798,4 +1799,3 @@
     (if (id v eof)  nil
         (isa!tab v) (inst name (cddr v))
                     (err 'inst-nontable))))
-
