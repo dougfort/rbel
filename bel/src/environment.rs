@@ -53,6 +53,9 @@ impl Environment {
                         "def" => {
                             return self.def(&list[1..]);
                         }
+                        "mac" => {
+                            return self.mac(&list[1..]);
+                        }
                         "quote" => {
                             return self.quote(&list[1..]);
                         }
@@ -167,31 +170,22 @@ impl Environment {
     // treat it as an abbreviation for
     //  (set n (lit clo nil p e))
     fn def(&mut self, list: &[Object]) -> Result<Object, BelError> {
-        if list.len() == 3 {
-            let name = list[0].clone();
+        let (name, body) = define_closure(list)?;
+        self.set(&[name, body])
+    }
 
-            let p = list[1].clone();
-            // we want the parameters to be a list
-            let parameters = if p.is_nil() {
-                Object::List(vec![])
-            } else if let Object::List(_) = p {
-                p
-            } else {
-                Object::List(vec![p])
-            };
-
-            let e = list[2].clone();
-            let body = Object::List(vec![
-                Object::Symbol("lit".to_string()),
-                Object::Symbol("clo".to_string()),
-                Object::Symbol("nil".to_string()),
-                parameters,
-                e,
-            ]);
-            self.set(&[name, body])
-        } else {
-            Err(BelError::InvalidDef(format!("{:?}", list)))
-        }
+    // when you see
+    //  (mac n p e)
+    // treat it as an abbreviation for
+    //  (set n (lit mac (lit clo nil p e)))
+    fn mac(&mut self, list: &[Object]) -> Result<Object, BelError> {
+        let (name, fn_body) = define_closure(list)?;
+        let body = Object::List(vec![
+            Object::Symbol("lit".to_string()),
+            Object::Symbol("mac".to_string()),
+            fn_body,
+        ]);
+        self.set(&[name, body])
     }
 
     fn quote(&self, list: &[Object]) -> Result<Object, BelError> {
@@ -201,6 +195,34 @@ impl Environment {
         } else {
             Err(BelError::InvalidQuote(format!("{:?}", list)))
         }
+    }
+}
+
+fn define_closure(list: &[Object]) -> Result<(Object, Object), BelError> {
+    if list.len() == 3 {
+        let name = list[0].clone();
+
+        let p = list[1].clone();
+        // we want the parameters to be a list
+        let parameters = if p.is_nil() {
+            Object::List(vec![])
+        } else if let Object::List(_) = p {
+            p
+        } else {
+            Object::List(vec![p])
+        };
+
+        let e = list[2].clone();
+        let body = Object::List(vec![
+            Object::Symbol("lit".to_string()),
+            Object::Symbol("clo".to_string()),
+            Object::Symbol("nil".to_string()),
+            parameters,
+            e,
+        ]);
+        Ok((name, body))
+    } else {
+        Err(BelError::InvalidDef(format!("{:?}", list)))
     }
 }
 
@@ -416,11 +438,11 @@ mod tests {
         let mut env = Environment::new();
         let locals: HashMap<String, Object> = HashMap::new();
 
-        let parse_obj = parser.parse("(id 'a 'a)")?;
+        let parse_obj = parser.parse("(id `a `a)")?;
         let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_true());
 
-        let parse_obj = parser.parse("(id 'a 'b)")?;
+        let parse_obj = parser.parse("(id `a `b)")?;
         let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil());
 
@@ -446,7 +468,7 @@ mod tests {
         let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_true());
 
-        let parse_obj = parser.parse("(no 'a)")?;
+        let parse_obj = parser.parse("(no `a)")?;
         let locals: HashMap<String, Object> = HashMap::new();
         let obj = env.evaluate(&locals, &parse_obj)?;
         assert!(obj.is_nil(), "{:?}", obj);

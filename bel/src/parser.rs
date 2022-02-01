@@ -49,6 +49,15 @@ impl Parser {
                     self.finish_build();
                     self.start_level();
                 }
+                // temporary expedient - just capturing a list
+                // Treat an expression in square brackets, e.g.
+                //  [f _ x]
+                // as an abbreviation for
+                //  (fn (_) (f _ x))
+                '[' => {
+                    self.finish_build();
+                    self.start_level();
+                }
                 ')' => {
                     self.finish_build();
                     if let QuotingState::List = self.quoting_state {
@@ -57,7 +66,16 @@ impl Parser {
                     };
                     self.finish_level();
                 }
-                '\'' => {
+                // temporary expedient - just capturing a list
+                ']' => {
+                    self.finish_build();
+                    if let QuotingState::List = self.quoting_state {
+                        self.finish_level();
+                        self.quoting_state = QuotingState::None;
+                    };
+                    self.finish_level();
+                }
+                '`' => {
                     if let QuotingState::None = self.quoting_state {
                         self.finish_build();
                         self.start_level();
@@ -247,7 +265,7 @@ mod tests {
     #[test]
     fn can_parse_quoted_symbol() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        let parse_obj = parser.parse("'a")?;
+        let parse_obj = parser.parse("`a")?;
         if let Object::List(l) = parse_obj {
             assert_eq!(
                 l,
@@ -265,7 +283,7 @@ mod tests {
     #[test]
     fn can_parse_quoted_list() -> Result<(), BelError> {
         let mut parser = Parser::new();
-        let parse_obj = parser.parse("'(a)")?;
+        let parse_obj = parser.parse("`(a)")?;
         if let Object::List(l) = parse_obj {
             assert_eq!(
                 l,
